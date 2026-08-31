@@ -299,7 +299,54 @@ async function createPlaylist() {
 
       const artist = artists[i];
       log(`Zoeken: ${artist}`);
-      const list = await candidatesFor(artist, max, $("excludeLive").checked);
+try {
+  const list = await candidatesFor(
+    artist,
+    max,
+    $("excludeLive").checked
+  );
+
+  let addedForArtist = 0;
+
+  for (const video of list) {
+    const key = songKey(video.snippet.title, artist);
+
+    if (!key.split("|")[1]) continue;
+    if (usedVideoIds.has(video.id) || usedSongs.has(key)) continue;
+
+    usedVideoIds.add(video.id);
+    usedSongs.add(key);
+    selected.push({ artist, video });
+
+    addedForArtist++;
+
+    const row = document.createElement("tr");
+    row.innerHTML =
+      `<td>${esc(artist)}</td>` +
+      `<td><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=${esc(video.id)}">${esc(video.snippet.title)}</a></td>` +
+      `<td>${esc(video.snippet.channelTitle)}</td>` +
+      `<td>${Number(video.statistics?.viewCount || 0).toLocaleString("nl-BE")}</td>`;
+
+    $("results").appendChild(row);
+
+    if (addedForArtist >= count) break;
+  }
+
+  log(`${artist}: ${addedForArtist}/${count} video's geselecteerd.`);
+}
+catch(error){
+
+  if(
+    error.message.includes("quota") ||
+    error.message.includes("Quota") ||
+    error.message.includes("Search Queries per day")
+  ){
+    log("YouTube quota bereikt. Playlist wordt aangemaakt met reeds gevonden video's.");
+    break;
+  }
+
+  throw error;
+}
       let addedForArtist = 0;
 
       for (const video of list) {
@@ -323,7 +370,11 @@ async function createPlaylist() {
       $("progress").value = Math.round((i + 1) / artists.length * 75);
     }
 
-    if (!selected.length) throw new Error("Geen geschikte video's gevonden.");
+if (!selected.length)
+  throw new Error("Geen geschikte video's gevonden.");
+
+if (stopRequested)
+  throw new Error("Gestopt door gebruiker.");
 
     const playlist = await api("/playlists?part=snippet,status", {
       method: "POST",
