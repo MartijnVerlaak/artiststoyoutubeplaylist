@@ -152,7 +152,7 @@ async function api(path, { method = "GET", body = null, auth = false } = {}) {
 }
 
 async function candidatesFor(artist, max, excludeLive) {
-  const query = `${artist} official music video`;
+const query = `${artist}`;
 
   const searchData = await api(`/search?${new URLSearchParams({
     part: "snippet",
@@ -179,7 +179,20 @@ async function candidatesFor(artist, max, excludeLive) {
       const durationSeconds = durationToSeconds(video.contentDetails?.duration);
 
       if (video.status?.embeddable === false) return false;
-      if (!artistInTitle(video.snippet?.title || "", artist)) return false;
+const channelTitle =
+  String(video.snippet?.channelTitle || "").toLowerCase();
+
+const artistName =
+  normalize(artist);
+
+const artistMentioned =
+  artistInTitle(video.snippet?.title || "", artist);
+
+const channelMatches =
+  normalize(channelTitle).includes(artistName);
+
+if (!artistMentioned && !channelMatches)
+    return false;
       if (badWords.some(word => combinedText.includes(word))) return false;
       if (excludeLive && (title.includes(" live") || title.includes("live ") || title.includes("[live]"))) return false;
 
