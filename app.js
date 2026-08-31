@@ -152,64 +152,128 @@ async function api(path, { method = "GET", body = null, auth = false } = {}) {
 }
 
 async function candidatesFor(artist, max, excludeLive) {
-const query = `${artist}`;
+  const queries = [
+    `"${artist}"`,
+    `${artist} official video`
+  ];
 
-  const searchData = await api(`/search?${new URLSearchParams({
-    part: "snippet",
-    q: query,
-    type: "video",
-    order: "viewCount",
-    maxResults: String(max),
-    videoCategoryId: "10"
-  })}`);
+  const allSearchItems = [];
 
-  const ids = (searchData.items || []).map(item => item.id.videoId).filter(Boolean);
+  for (const query of queries) {
+    const searchData = await api(`/search?${new URLSearchParams({
+      part: "snippet",
+      q: query,
+      type: "video",
+      maxResults: String(max),
+      videoCategoryId: "10"
+    })}`);
+
+    allSearchItems.push(...(searchData.items || []));
+  }
+
+  const ids = [
+    ...new Set(
+      allSearchItems
+        .map(item => item.id?.videoId)
+        .filter(Boolean)
+    )
+  ];
+
   if (!ids.length) return [];
 
-  const videoData = await api(`/videos?${new URLSearchParams({
-    part: "snippet,statistics,status,contentDetails",
-    id: ids.join(",")
-  })}`);
+  const allVideos = [];
 
-  return (videoData.items || [])
+  for (let i = 0; i < ids.length; i += 50) {
+    const videoData = await api(`/videos?${new URLSearchParams({
+      part: "snippet,statistics,status,contentDetails",
+      id: ids.slice(i, i + 50).join(",")
+    })}`);
+
+    allVideos.push(...(videoData.items || []));
+  }
+
+  return allVideos
     .filter(video => {
-      const title = String(video.snippet?.title || "").toLowerCase();
-      const description = String(video.snippet?.description || "").toLowerCase();
-      const combinedText = `${title} ${description}`;
-      const durationSeconds = durationToSeconds(video.contentDetails?.duration);
+      const title = String(
+        video.snippet?.title || ""
+      ).toLowerCase();
 
-      if (video.status?.embeddable === false) return false;
-const channelTitle =
-  String(video.snippet?.channelTitle || "").toLowerCase();
+      const description = String(
+        video.snippet?.description || ""
+      ).toLowerCase();
 
-const artistName =
-  normalize(artist);
+      const channelTitle = String(
+        video.snippet?.channelTitle || ""
+      ).toLowerCase();
 
-const artistMentioned =
-  artistInTitle(video.snippet?.title || "", artist);
+      const combinedText =
+        `${title} ${description}`;
 
-const channelMatches =
-  normalize(channelTitle).includes(artistName);
+      const durationSeconds =
+        durationToSeconds(
+          video.contentDetails?.duration
+        );
 
-if (!artistMentioned && !channelMatches)
-    return false;
-      if (badWords.some(word => combinedText.includes(word))) return false;
-      if (excludeLive && (title.includes(" live") || title.includes("live ") || title.includes("[live]"))) return false;
+      const artistMentioned =
+        artistInTitle(
+          video.snippet?.title || "",
+          artist
+        );
 
-      // Alle video's korter dan 120 seconden uitsluiten.
-      if (durationSeconds !== null && durationSeconds < 120) return false;
+      const channelMatches =
+        normalize(channelTitle).includes(
+          normalize(artist)
+        );
 
-      // Verticale video's uitsluiten wanneer YouTube verticale thumbnailafmetingen teruggeeft.
-      if (isVerticalVideo(video)) return false;
+      if (video.status?.embeddable === false) {
+        return false;
+      }
 
-      // Lange albumuploads uitsluiten, ook als "full album" niet letterlijk in de titel staat.
-      if (durationSeconds !== null && durationSeconds >= 20 * 60) return false;
+      if (!artistMentioned && !channelMatches) {
+        return false;
+      }
+
+      if (
+        badWords.some(word =>
+          combinedText.includes(word)
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        excludeLive &&
+        (
+          title.includes(" live") ||
+          title.includes("live ") ||
+          title.includes("[live]")
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        durationSeconds !== null &&
+        durationSeconds <= 60
+      ) {
+        return false;
+      }
+
+      if (
+        durationSeconds !== null &&
+        durationSeconds >= 20 * 60
+      ) {
+        return false;
+      }
 
       return true;
     })
-    .sort((a, b) => Number(b.statistics?.viewCount || 0) - Number(a.statistics?.viewCount || 0));
+    .sort(
+      (a, b) =>
+        Number(b.statistics?.viewCount || 0) -
+        Number(a.statistics?.viewCount || 0)
+    );
 }
-
 async function createPlaylist() {
   stopRequested = false;
   $("results").innerHTML = "";
