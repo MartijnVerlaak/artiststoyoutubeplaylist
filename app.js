@@ -7,8 +7,6 @@ const API = "https://www.googleapis.com/youtube/v3";
 
 const badWords = [
   "reaction",
-  "live",
-  "session",
   "review",
   "interview",
   "podcast",
@@ -76,6 +74,16 @@ function durationToSeconds(duration) {
   const match = String(duration || "").match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
   if (!match) return null;
   return Number(match[1] || 0) * 3600 + Number(match[2] || 0) * 60 + Number(match[3] || 0);
+}
+
+function isVerticalVideo(video) {
+  const thumbnails = Object.values(video.snippet?.thumbnails || {});
+  const largestKnownThumbnail = thumbnails
+    .filter(thumbnail => Number(thumbnail?.width) > 0 && Number(thumbnail?.height) > 0)
+    .sort((a, b) => (Number(b.width) * Number(b.height)) - (Number(a.width) * Number(a.height)))[0];
+
+  if (!largestKnownThumbnail) return false;
+  return Number(largestKnownThumbnail.height) > Number(largestKnownThumbnail.width);
 }
 
 function config() {
@@ -172,8 +180,11 @@ async function candidatesFor(artist, max, excludeLive) {
       if (badWords.some(word => combinedText.includes(word))) return false;
       if (excludeLive && (title.includes(" live") || title.includes("live ") || title.includes("[live]"))) return false;
 
-      // Zeer korte video's uitsluiten. Dit vangt klassieke Shorts op zonder normale songs van 1-3 minuten te schrappen.
-      if (durationSeconds !== null && durationSeconds <= 60) return false;
+      // Alle video's korter dan 120 seconden uitsluiten.
+      if (durationSeconds !== null && durationSeconds < 120) return false;
+
+      // Verticale video's uitsluiten wanneer YouTube verticale thumbnailafmetingen teruggeeft.
+      if (isVerticalVideo(video)) return false;
 
       // Lange albumuploads uitsluiten, ook als "full album" niet letterlijk in de titel staat.
       if (durationSeconds !== null && durationSeconds >= 20 * 60) return false;
