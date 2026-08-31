@@ -7,6 +7,9 @@ const API = "https://www.googleapis.com/youtube/v3";
 
 const badWords = [
   "reaction",
+  "live",
+  "session",
+  "footage",
   "review",
   "interview",
   "podcast",
@@ -18,8 +21,8 @@ const badWords = [
   "cover by",
   "karaoke",
   "shorts",
-  "#short",
-  "#shorts",
+  "short",
+  "shorts",
   "full album",
   "fullalbum",
   "album stream",
