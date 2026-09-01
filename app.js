@@ -306,33 +306,7 @@ try {
     $("excludeLive").checked
   );
 
-  let addedForArtist = 0;
 
-  for (const video of list) {
-    const key = songKey(video.snippet.title, artist);
-
-    if (!key.split("|")[1]) continue;
-    if (usedVideoIds.has(video.id) || usedSongs.has(key)) continue;
-
-    usedVideoIds.add(video.id);
-    usedSongs.add(key);
-    selected.push({ artist, video });
-
-    addedForArtist++;
-
-    const row = document.createElement("tr");
-    row.innerHTML =
-      `<td>${esc(artist)}</td>` +
-      `<td><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=${esc(video.id)}">${esc(video.snippet.title)}</a></td>` +
-      `<td>${esc(video.snippet.channelTitle)}</td>` +
-      `<td>${Number(video.statistics?.viewCount || 0).toLocaleString("nl-BE")}</td>`;
-
-    $("results").appendChild(row);
-
-    if (addedForArtist >= count) break;
-  }
-
-  log(`${artist}: ${addedForArtist}/${count} video's geselecteerd.`);
 }
 catch(error){
 
