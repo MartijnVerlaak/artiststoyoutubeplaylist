@@ -299,17 +299,16 @@ async function createPlaylist() {
 
       const artist = artists[i];
       log(`Zoeken: ${artist}`);
+let list;
+
 try {
-  const list = await candidatesFor(
+  list = await candidatesFor(
     artist,
     max,
     $("excludeLive").checked
   );
-
-
 }
 catch(error){
-
   if(
     error.message.includes("quota") ||
     error.message.includes("Quota") ||
@@ -318,7 +317,6 @@ catch(error){
     log("YouTube quota bereikt. Playlist wordt aangemaakt met reeds gevonden video's.");
     break;
   }
-
   throw error;
 }
       let addedForArtist = 0;
